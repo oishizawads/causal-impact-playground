@@ -23,8 +23,9 @@ st.set_page_config(
     layout="centered",
 )
 
-st.title("Causal Impact Playground")
-st.caption("施策前後比較・A/Bテスト・DID の違いを合成データで体感するアプリ")
+from src.brand import apply_brand, hero
+apply_brand(st)
+hero(st, "Causal Inference", "Causal Impact Playground", "施策前後比較・A/Bテスト・DID の違いを合成データで比較し、因果推論と実験設計を体験します。")
 
 
 @st.cache_data(show_spinner=False)
