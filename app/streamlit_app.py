@@ -7,15 +7,27 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src import DataConfig, did_estimate, generate_panel_data, pre_post_difference
+from src.brand import (
+    apply_brand,
+    footer_backlink,
+    hero,
+    section,
+    sidebar_header,
+    themed_altair,
+    show_table,
+)
 from src.data import validate_config
 from src.estimation import parallel_trends_check
 from src.viz import plot_estimate_comparison, plot_group_trends
+
+themed_altair(alt)
 
 st.set_page_config(
     page_title="Causal Impact Playground",
@@ -23,9 +35,14 @@ st.set_page_config(
     layout="centered",
 )
 
-from src.brand import apply_brand, hero
 apply_brand(st)
-hero(st, "Causal Inference", "Causal Impact Playground", "施策前後比較・A/Bテスト・DID の違いを合成データで比較し、因果推論と実験設計を体験します。")
+hero(
+    st,
+    "CAUSAL INFERENCE",
+    "Causal Impact Playground",
+    "施策前後比較・A/Bテスト・DID の違いを合成データで比較し、因果推論と実験設計を体験します。",
+    chips=["Python", "statsmodels", "Altair", "DID", "Causal Inference"],
+)
 
 
 @st.cache_data(show_spinner=False)
@@ -53,7 +70,8 @@ def _build_results(cfg_tuple: tuple) -> dict:
 
 
 with st.sidebar:
-    st.header("データ生成パラメータ")
+    sidebar_header(st, "Causal Impact Playground")
+    st.sidebar.caption("データ生成パラメータ")
     seed = st.number_input("乱数シード（再現性）", value=42, step=1)
     n_pre = st.number_input("施策前の期間数", min_value=1, value=5, step=1)
     n_post = st.number_input("施策後の期間数", min_value=1, value=5, step=1)
@@ -103,11 +121,11 @@ did = bundle["did"]
 slopes = bundle["slopes"]
 
 # --- 群別トレンドグラフ ---
-st.subheader("群別トレンドグラフ")
-st.pyplot(plot_group_trends(df, cfg), use_container_width=True)
+section(st, "TRENDS", "群別トレンドグラフ")
+st.altair_chart(plot_group_trends(df, cfg), width="stretch")
 
 # --- 平行トレンドの診断 ---
-st.subheader("平行トレンドの目安（事前期間）")
+section(st, "DIAGNOSTICS", "平行トレンドの目安（事前期間）")
 col_a, col_b, col_c = st.columns(3)
 col_a.metric("対照群の事前傾き", f"{slopes['control_slope']:.2f}")
 col_b.metric("処置群の事前傾き", f"{slopes['treat_slope']:.2f}")
@@ -123,8 +141,8 @@ else:
     st.success("群別トレンド差 = 0。平行トレンド仮定が成立する設定です。")
 
 # --- 推定結果 ---
-st.subheader("推定結果（信頼区間付き）")
-st.pyplot(plot_estimate_comparison([pp, did]), use_container_width=True)
+section(st, "RESULTS", "推定結果（信頼区間付き）")
+st.altair_chart(plot_estimate_comparison([pp, did]), width="stretch")
 
 rows = [
     {
@@ -140,10 +158,10 @@ rows = [
     }
     for r in (pp, did)
 ]
-st.dataframe(pd.DataFrame(rows).set_index("手法"), use_container_width=True)
+show_table(st, pd.DataFrame(rows))
 
 # --- 解釈メモ ---
-st.subheader("解釈メモ")
+section(st, "MEMO", "解釈メモ")
 st.markdown(
     f"""
 - **単純前後差**: 処置群の事後-事前の差。共通トレンドが {cfg.trend:g} のため、
@@ -154,11 +172,12 @@ st.markdown(
 """
 )
 
-# --- 注意文（過剰解釈の防止） ---
-st.subheader(":warning: 注意")
+# --- 注意（DID 仮定・方法論的注記） ---
+section(st, "NOTE", "注意事項")
 st.info(
-    "これは合成データの実験であり、実在の因果効果を示すものではありません。"
     "DID は平行トレンド仮定の下で成立する手法であり、実際の施策評価では"
     "事前トレンドの検査・共変量バランス・介入タイミングの精査が不可欠です。"
     "ノイズやサンプルサイズによっては信頼区間が真値を外れることもあります。"
 )
+
+footer_backlink(st, repo="causal-impact-playground")
